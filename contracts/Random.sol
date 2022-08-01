@@ -13,27 +13,31 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 /// Imports contracts from OpenZeppelin.
 contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
     VRFCoordinatorV2Interface immutable i_vrfCoordinator;
-    bytes32 immutable i_gasLane;
-    uint64 immutable i_subscriptionId;
-    uint32 immutable i_callbackGasLimit;
-    uint16 constant REQUEST_CONFIRMATIONS = 3;
-    uint32 constant NUMBER_WORDS = 3;
-    uint256 constant MAX_CHANCE_VALUE = 1000;
+    bytes32 public immutable i_gasLane; // Should be <private>.
+    uint64 public immutable i_subscriptionId; // Should be <private>.
+    uint32 public immutable i_callbackGasLimit; // Should be <private>.
+    uint16 public constant REQUEST_CONFIRMATIONS = 3; // Should be <private>.
+    uint32 public constant NUM_WORDS = 3; // Should be <private>.
+    uint256 public constant MAX_CHANCE_VALUE = 1000; // Should be <private>.
 
     mapping(uint256 => address) s_requestIdToSender;
+    string[3] public s_tokenURIs;
 
-    uint256 s_tokenCounter;
+    uint256 public s_tokenCounter;
 
     constructor(
         address vrfCoordinatorV2,
         bytes32 gasLane,
         uint64 subscriptionId,
-        uint32 callbackGasLimit
+        uint32 callbackGasLimit,
+        string[3] memory tokenUris
     ) ERC721("Random IPFS NFT", "RIN") VRFConsumerBaseV2(vrfCoordinatorV2) {
         i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
         i_gasLane = gasLane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+        s_tokenCounter = 0;
+        s_tokenURIs = tokenUris;
     }
 
     // Mint a random object:
@@ -45,7 +49,7 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
             i_subscriptionId,
             REQUEST_CONFIRMATIONS,
             i_callbackGasLimit,
-            NUMBER_WORDS
+            NUM_WORDS
         );
         s_requestIdToSender[requestId] = msg.sender;
     }
@@ -60,13 +64,33 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
         // Asign this NFT a <tokenId>.
         uint256 newTokenId = s_tokenCounter;
         s_tokenCounter = s_tokenCounter + 1;
+        uint256 moddedRng = randomWords[0] % MAX_CHANCE_VALUE; // Random number generated.
+        uint256 selection = selectionFromModdedRng(moddedRng);
         _safeMint(objectOwner, newTokenId);
+        _setTokenURI(newTokenId, s_tokenURIs[selection]);
     }
 
-    function getChanceArray() public pure returns (uint256[3] memory) {
+    function calculateChance() public pure returns (uint256[3] memory) {
         // 0 - 10 = Epic
         // 11 - 100 = Rare
         // 101 - 1000 = Common
         return [10, 100, MAX_CHANCE_VALUE];
+    }
+
+    function selectionFromModdedRng(uint256 moddedRng)
+        public
+        pure
+        returns (uint256)
+    {
+        uint256 cumulativeSum = 0;
+        uint256[3] memory chanceArray = calculateChance();
+
+        for (uint256 i = 0; i < chanceArray.length; i++) {
+            if (
+                moddedRng >= cumulativeSum &&
+                moddedRng < cumulativeSum + chanceArray[i]
+            ) return i; // Else use <revert> with custom error 'RangeOutOfScope'.
+            cumulativeSum = cumulativeSum + chanceArray[i];
+        }
     }
 }
