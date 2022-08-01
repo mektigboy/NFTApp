@@ -18,6 +18,11 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
     uint32 immutable i_callbackGasLimit;
     uint16 constant REQUEST_CONFIRMATIONS = 3;
     uint32 constant NUMBER_WORDS = 3;
+    uint256 constant MAX_CHANCE_VALUE = 1000;
+
+    mapping(uint256 => address) s_requestIdToSender;
+
+    uint256 s_tokenCounter;
 
     constructor(
         address vrfCoordinatorV2,
@@ -42,5 +47,26 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
             i_callbackGasLimit,
             NUMBER_WORDS
         );
+        s_requestIdToSender[requestId] = msg.sender;
+    }
+
+    // 2. Mint object.
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        internal
+        override
+    {
+        // Owner of the object.
+        address objectOwner = s_requestIdToSender[requestId];
+        // Asign this NFT a <tokenId>.
+        uint256 newTokenId = s_tokenCounter;
+        s_tokenCounter = s_tokenCounter + 1;
+        _safeMint(objectOwner, newTokenId);
+    }
+
+    function getChanceArray() public pure returns (uint256[3] memory) {
+        // 0 - 10 = Epic
+        // 11 - 100 = Rare
+        // 101 - 1000 = Common
+        return [10, 100, MAX_CHANCE_VALUE];
     }
 }
