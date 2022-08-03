@@ -17,11 +17,11 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
     uint64 public immutable i_subscriptionId; // Should be <private>.
     uint32 public immutable i_callbackGasLimit; // Should be <private>.
     uint16 public constant REQUEST_CONFIRMATIONS = 3; // Should be <private>.
-    uint32 public constant NUM_WORDS = 3; // Should be <private>.
+    uint32 public constant NUM_WORDS = 1; // Should be <private>.
     uint256 public constant MAX_CHANCE_VALUE = 1000; // Should be <private>.
 
     mapping(uint256 => address) s_requestIdToSender;
-    string[3] public s_tokenURIs;
+    string[3] public s_tokenUris;
 
     uint256 public s_tokenCounter;
 
@@ -37,7 +37,7 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
         s_tokenCounter = 0;
-        s_tokenURIs = tokenUris;
+        s_tokenUris = tokenUris;
     }
 
     // Mint a random object:
@@ -65,25 +65,25 @@ contract Random is ERC721URIStorage, VRFConsumerBaseV2 {
         uint256 newTokenId = s_tokenCounter;
         s_tokenCounter = s_tokenCounter + 1;
         uint256 moddedRng = randomWords[0] % MAX_CHANCE_VALUE; // Random number generated.
-        uint256 selection = selectionFromModdedRng(moddedRng);
+        uint256 selection = selectFromModdedRng(moddedRng);
         _safeMint(objectOwner, newTokenId);
-        _setTokenURI(newTokenId, s_tokenURIs[selection]);
+        _setTokenURI(newTokenId, s_tokenUris[selection]);
     }
 
-    function calculateChance() public pure returns (uint256[3] memory) {
+    function getChanceArray() public pure returns (uint256[3] memory) {
         // 0 - 10 = Epic
         // 11 - 100 = Rare
         // 101 - 1000 = Common
         return [10, 100, MAX_CHANCE_VALUE];
     }
 
-    function selectionFromModdedRng(uint256 moddedRng)
+    function selectFromModdedRng(uint256 moddedRng)
         public
         pure
         returns (uint256)
     {
         uint256 cumulativeSum = 0;
-        uint256[3] memory chanceArray = calculateChance();
+        uint256[3] memory chanceArray = getChanceArray();
 
         for (uint256 i = 0; i < chanceArray.length; i++) {
             if (
